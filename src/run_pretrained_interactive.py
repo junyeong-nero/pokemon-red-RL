@@ -105,6 +105,7 @@ if __name__ == "__main__":
                 truncated = env.step_count >= env.max_steps - 1
 
             frame = env.render(reduce_res=False)[:, :, 0]
+            print(env.get_state())
             monitor.write(frame)
 
             if truncated:

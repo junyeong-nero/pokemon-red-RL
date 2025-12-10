@@ -18,7 +18,7 @@ from gymnasium import Env, spaces
 from pyboy.utils import WindowEvent
 
 from global_map import local_to_global, GLOBAL_MAP_SHAPE
-from config import EVENTS_PATH, MAP_MODULE_PATH
+from config import *
 
 event_flags_start = 0xD747
 event_flags_end = 0xD87E  # expand for SS Anne # old - 0xD7F6
@@ -54,6 +54,11 @@ def parse_object_sprites(asm_path):
     return sprite_names
 
 
+def load_json(path):
+    with open(path, encoding="utf-8") as f:
+        return json.load(f)
+
+
 class RedGymEnv(Env):
     def __init__(self, config=None):
         self.s_path = config["session_path"]
@@ -66,6 +71,16 @@ class RedGymEnv(Env):
         self.save_video = config["save_video"]
         self.fast_video = config["fast_video"]
         self.frame_stacks = 3
+
+        # added resources
+        self.map_names = load_json(MAP_NAMES_PATH)
+        self.charmap = load_json(CHARMAP_PATH)
+        self.item_names = load_json(ITEM_NAMES_PATH)
+        self.species_names = load_json(SPECIES_NAMES_PATH)
+        self.type_names = load_json(TYPE_NAMES_PATH)
+        self.move_names = load_json(MOVE_NAMES_PATH)
+        self.asm_dir = ASM_DIR
+
         self.explore_weight = (
             1 if "explore_weight" not in config else config["explore_weight"]
         )
@@ -1186,6 +1201,110 @@ class RedGymEnv(Env):
         parts.append(self.get_map_info())
 
         return "\n".join(parts)
+
+    def parse_game_state(self):
+
+        text = self.get_state()
+        result = {}
+
+        # 1. State
+        state_match = re.search(r"State:\s*(\w+)", text)
+        result["state"] = state_match.group(1) if state_match else None
+
+        # 2. Filtered Screen Text
+        filtered_text = re.search(
+            r"\[Filtered Screen Text\]\n(.*?)(?=\[Selection Box Text\])",
+            text,
+            re.DOTALL,
+        )
+        text_tmp = filtered_text.group(1).strip()
+        result["filtered_screen_text"] = text_tmp if text_tmp != "" else "N/A"
+
+        # 3. Selection Box Text
+        selection_box = re.search(
+            r"\[Selection Box Text\]\n(.*?)(?=\[Enemy Pokemon\])", text, re.DOTALL
+        )
+        text_tmp = selection_box.group(1).strip()
+        result["selection_box_text"] = text_tmp if text_tmp != "" else "N/A"
+
+        # 4. Enemy Pokemon
+        enemy_pokemon = {}
+        enemy_section = re.search(
+            r"\[Enemy Pokemon\]\n(.*?)(?=\[Current Party\])", text, re.DOTALL
+        )
+        if enemy_section:
+            for line in enemy_section.group(1).splitlines():
+                if ": " in line:
+                    key, value = line.split(": ", 1)
+                    enemy_pokemon[key.strip()] = value.strip()
+        result["enemy_pokemon"] = enemy_pokemon
+
+        # 5. Your Party
+        party_match = re.search(
+            r"\[Current Party\]\n(.*?)(?=\[Badge List\])", text, re.DOTALL
+        )
+        result["your_party"] = party_match.group(1).strip() if party_match else ""
+
+        # 6. Badge List
+        badge_match = re.search(r"\[Badge List\]\n(.*?)(?=\[Bag\])", text, re.DOTALL)
+        result["badge_list"] = badge_match.group(1).strip() if badge_match else ""
+
+        # 7. Inventory
+        inventory_match = re.search(
+            r"\[Bag\]\n(.*?)(?=\[Current Money\])", text, re.DOTALL
+        )
+        result["inventory"] = (
+            inventory_match.group(1).strip() if inventory_match else ""
+        )
+
+        # 8. Current Money
+        money_match = re.search(r"\[Current Money\]:\s*¥(\d+)", text)
+        result["money"] = int(money_match.group(1)) if money_match else 0
+
+        # 9. Map Info
+        map_info = {}
+        map_section = re.search(r"\[Map Info\]\n(.*)", text, re.DOTALL)
+        if map_section:
+            map_text = map_section.group(1)
+            map_name_match = re.search(r"Map Name:\s*(.*?),", map_text)
+            map_info["map_name"] = map_name_match.group(1) if map_name_match else None
+
+            map_type_match = re.search(r"Map type:\s*(.*)", map_text)
+            map_info["map_type"] = (
+                map_type_match.group(1).strip() if map_type_match else None
+            )
+
+            expansion_match = re.search(r"Expansion direction:\s*(.*)", map_text)
+            map_info["expansion_direction"] = (
+                expansion_match.group(1).strip() if expansion_match else None
+            )
+
+            coords_match = re.search(
+                r"\(x_max , y_max\):\s*\((\d+),\s*(\d+)\)", map_text
+            )
+            map_info["x_max"] = int(coords_match.group(1)) if coords_match else None
+            map_info["y_max"] = int(coords_match.group(2)) if coords_match else None
+
+            pos_match = re.search(r"Your position \(x, y\): \((\d+), (\d+)\)", map_text)
+            map_info["player_pos_x"] = int(pos_match.group(1)) if pos_match else None
+            map_info["player_pos_y"] = int(pos_match.group(2)) if pos_match else None
+
+            facing_match = re.search(r"Your facing direction:\s*(\w+)", map_text)
+            map_info["facing"] = facing_match.group(1) if facing_match else None
+
+            try:
+                # Optional: extract action instructions and screen map
+                map_info["map_screen_raw"] = (
+                    re.search(r"Map on Screen:\n(.+)", map_text, re.DOTALL)
+                    .group(1)
+                    .strip()
+                )
+            except:
+                map_info["map_screen_raw"] = None
+
+        result["map_info"] = map_info
+
+        return result
 
     def save_sav_file(self, path):
         with open(path, "wb") as f:
