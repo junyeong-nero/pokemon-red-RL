@@ -13,6 +13,7 @@ OUTPUTS_DIR = PROJECT_ROOT / "outputs"
 # Core assets
 ROM_PATH = RESOURCES_DIR / "pokemon-red.gb"
 INIT_STATE_PATH = RESOURCES_DIR / "init.state"
+MAP_MODULE_PATH = RESOURCES_DIR / "processed_map"
 
 # Data files
 EVENTS_PATH = RESOURCES_DIR / "events.json"
