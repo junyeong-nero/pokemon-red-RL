@@ -10,6 +10,7 @@ from stable_baselines3.common.vec_env import DummyVecEnv, SubprocVecEnv
 from stable_baselines3.common.utils import set_random_seed
 from stable_baselines3.common.callbacks import CheckpointCallback
 from config import AGENT_ENABLED, INIT_STATE_PATH, ROM_PATH, RUNS_DIR
+from monitor import VideoMonitor
 
 
 def make_env(rank, env_conf, seed=0):
@@ -75,10 +76,13 @@ if __name__ == "__main__":
     )()  # SubprocVecEnv([make_env(i, env_config) for i in range(num_cpu)])
 
     # env_checker.check_env(env)
+    file_name = None
     most_recent_checkpoint, time_since = get_most_recent_zip_with_age(RUNS_DIR)
     if most_recent_checkpoint is not None:
         file_name = str(most_recent_checkpoint)
         print(f"using checkpoint: {file_name}, which is {time_since} hours old")
+    else:
+        raise FileNotFoundError(f"No checkpoint zip files found in {RUNS_DIR}")
 
     # could optionally manually specify a checkpoint here
     # file_name = "runs/poke_41943040_steps.zip"
@@ -89,15 +93,22 @@ if __name__ == "__main__":
 
     # keyboard.on_press_key("M", toggle_agent)
     obs, info = env.reset()
-    while True:
-        if AGENT_ENABLED:
-            action, _states = model.predict(obs, deterministic=False)
-            obs, rewards, terminated, truncated, info = env.step(action)
-        else:
-            env.pyboy.tick(1, True)
-            obs = env._get_obs()
-            truncated = env.step_count >= env.max_steps - 1
-        env.render()
-        if truncated:
-            break
-    env.close()
+    monitor = VideoMonitor()
+    try:
+        while True:
+            if AGENT_ENABLED:
+                action, _states = model.predict(obs, deterministic=False)
+                obs, rewards, terminated, truncated, info = env.step(action)
+            else:
+                env.pyboy.tick(1, True)
+                obs = env._get_obs()
+                truncated = env.step_count >= env.max_steps - 1
+
+            frame = env.render(reduce_res=False)[:, :, 0]
+            monitor.write(frame)
+
+            if truncated:
+                break
+    finally:
+        monitor.close()
+        env.close()

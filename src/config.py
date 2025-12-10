@@ -8,6 +8,7 @@ from pathlib import Path
 SRC_DIR = Path(__file__).resolve().parent
 PROJECT_ROOT = SRC_DIR.parent
 RESOURCES_DIR = PROJECT_ROOT / "resources"
+OUTPUTS_DIR = PROJECT_ROOT / "outputs"
 
 # Core assets
 ROM_PATH = RESOURCES_DIR / "pokemon-red.gb"
