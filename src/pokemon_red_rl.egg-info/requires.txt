@@ -1,0 +1,8 @@
+einops>=0.8.1
+gymnasium>=1.2.2
+matplotlib>=3.10.7
+mediapy>=1.2.4
+numpy>=2.3.5
+pyboy>=2.6.1
+scikit-image>=0.25.2
+stable-baselines3>=2.7.1

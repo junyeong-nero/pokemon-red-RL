@@ -1,5 +1,4 @@
 import os
-from os.path import exists
 from pathlib import Path
 import uuid
 import time
@@ -10,6 +9,12 @@ from stable_baselines3.common import env_checker
 from stable_baselines3.common.vec_env import DummyVecEnv, SubprocVecEnv
 from stable_baselines3.common.utils import set_random_seed
 from stable_baselines3.common.callbacks import CheckpointCallback
+from config import (
+    AGENT_ENABLED_PATH,
+    INIT_STATE_PATH,
+    ROM_PATH,
+    RUNS_DIR,
+)
 
 def make_env(rank, env_conf, seed=0):
     """
@@ -26,21 +31,19 @@ def make_env(rank, env_conf, seed=0):
     set_random_seed(seed)
     return _init
 
-def get_most_recent_zip_with_age(folder_path):
-    # Get all zip files in the folder
-    zip_files = glob.glob(os.path.join(folder_path, "*.zip"))
-    
+def get_most_recent_zip_with_age(folder_path: Path):
+    folder_path = Path(folder_path)
+    zip_files = list(folder_path.glob("*.zip"))
+
     if not zip_files:
-        return None, None  # Return None if no zip files are found
-    
-    # Find the most recently modified zip file
-    most_recent_zip = max(zip_files, key=os.path.getmtime)
-    
-    # Calculate how old the file is in hours
+        return None, None
+
+    most_recent_zip = max(zip_files, key=lambda p: p.stat().st_mtime)
+
     current_time = time.time()
-    modification_time = os.path.getmtime(most_recent_zip)
-    age_in_hours = (current_time - modification_time) / 3600  # Convert seconds to hours
-    
+    modification_time = most_recent_zip.stat().st_mtime
+    age_in_hours = (current_time - modification_time) / 3600
+
     return most_recent_zip, age_in_hours
 
 if __name__ == '__main__':
@@ -50,18 +53,18 @@ if __name__ == '__main__':
 
     env_config = {
                 'headless': False, 'save_final_state': True, 'early_stop': False,
-                'action_freq': 24, 'init_state': '../init.state', 'max_steps': ep_length, 
+                'action_freq': 24, 'init_state': INIT_STATE_PATH, 'max_steps': ep_length,
                 'print_rewards': True, 'save_video': False, 'fast_video': True, 'session_path': sess_path,
-                'gb_path': '../PokemonRed.gb', 'debug': False, 'sim_frame_dist': 2_000_000.0, 'extra_buttons': False
+                'gb_path': ROM_PATH, 'debug': False, 'sim_frame_dist': 2_000_000.0, 'extra_buttons': False
             }
     
     num_cpu = 1 #64 #46  # Also sets the number of episodes per training iteration
     env = make_env(0, env_config)() #SubprocVecEnv([make_env(i, env_config) for i in range(num_cpu)])
     
     #env_checker.check_env(env)
-    most_recent_checkpoint, time_since = get_most_recent_zip_with_age("runs")
+    most_recent_checkpoint, time_since = get_most_recent_zip_with_age(RUNS_DIR)
     if most_recent_checkpoint is not None:
-        file_name = most_recent_checkpoint
+        file_name = str(most_recent_checkpoint)
         print(f"using checkpoint: {file_name}, which is {time_since} hours old")
     
     # could optionally manually specify a checkpoint here
@@ -73,7 +76,7 @@ if __name__ == '__main__':
     obs, info = env.reset()
     while True:
         try:
-            with open("agent_enabled.txt", "r") as f:
+            with open(AGENT_ENABLED_PATH, "r") as f:
                 agent_enabled = f.readlines()[0].startswith("yes")
         except:
             agent_enabled = False
@@ -88,5 +91,4 @@ if __name__ == '__main__':
         if truncated:
             break
     env.close()
-
 

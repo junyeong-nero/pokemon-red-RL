@@ -1,5 +1,4 @@
 import sys
-from os.path import exists
 from pathlib import Path
 from red_gym_env_v2 import RedGymEnv
 from stream_agent_wrapper import StreamWrapper
@@ -9,6 +8,7 @@ from stable_baselines3.common.vec_env import SubprocVecEnv
 from stable_baselines3.common.utils import set_random_seed
 from stable_baselines3.common.callbacks import CheckpointCallback, CallbackList
 from tensorboard_callback import TensorboardCallback
+from config import INIT_STATE_PATH, ROM_PATH, RUNS_DIR
 
 def make_env(rank, env_conf, seed=0):
     """
@@ -37,14 +37,14 @@ if __name__ == "__main__":
 
     use_wandb_logging = False
     ep_length = 2048 * 80
-    sess_id = "runs"
-    sess_path = Path(sess_id)
+    sess_id = RUNS_DIR.name
+    sess_path = RUNS_DIR
 
     env_config = {
                 'headless': True, 'save_final_state': False, 'early_stop': False,
-                'action_freq': 24, 'init_state': '../init.state', 'max_steps': ep_length, 
+                'action_freq': 24, 'init_state': INIT_STATE_PATH, 'max_steps': ep_length,
                 'print_rewards': True, 'save_video': False, 'fast_video': True, 'session_path': sess_path,
-                'gb_path': '../PokemonRed.gb', 'debug': False, 'reward_scale': 0.5, 'explore_weight': 0.25
+                'gb_path': ROM_PATH, 'debug': False, 'reward_scale': 0.5, 'explore_weight': 0.25
             }
     
     print(env_config)
@@ -82,9 +82,12 @@ if __name__ == "__main__":
 
     train_steps_batch = ep_length // 64
     
-    if exists(file_name + ".zip"):
+    checkpoint_base = Path(file_name) if file_name else None
+    checkpoint_zip = checkpoint_base.with_suffix(".zip") if checkpoint_base else None
+
+    if checkpoint_zip and checkpoint_zip.exists():
         print("\nloading checkpoint")
-        model = PPO.load(file_name, env=env)
+        model = PPO.load(checkpoint_zip, env=env)
         model.n_steps = train_steps_batch
         model.n_envs = num_cpu
         model.rollout_buffer.buffer_size = train_steps_batch

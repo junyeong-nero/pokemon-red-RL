@@ -1,15 +1,15 @@
 # adapted from https://github.com/thatguy11325/pokemonred_puffer/blob/main/pokemonred_puffer/global_map.py
 
-import os
 import json
 
-MAP_PATH = os.path.join(os.path.dirname(__file__), "map_data.json")
+from config import MAP_DATA_PATH
+
 PAD = 20
 GLOBAL_MAP_SHAPE = (444 + PAD * 2, 436 + PAD * 2)
 MAP_ROW_OFFSET = PAD
 MAP_COL_OFFSET = PAD
 
-with open(MAP_PATH) as map_data:
+with open(MAP_DATA_PATH) as map_data:
     MAP_DATA = json.load(map_data)["regions"]
 MAP_DATA = {int(e["id"]): e for e in MAP_DATA}
 

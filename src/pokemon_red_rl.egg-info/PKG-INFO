@@ -1,3 +1,20 @@
+Metadata-Version: 2.4
+Name: pokemon-red-rl
+Version: 0.1.0
+Summary: Add your description here
+Requires-Python: >=3.13
+Description-Content-Type: text/markdown
+License-File: LICENSE
+Requires-Dist: einops>=0.8.1
+Requires-Dist: gymnasium>=1.2.2
+Requires-Dist: matplotlib>=3.10.7
+Requires-Dist: mediapy>=1.2.4
+Requires-Dist: numpy>=2.3.5
+Requires-Dist: pyboy>=2.6.1
+Requires-Dist: scikit-image>=0.25.2
+Requires-Dist: stable-baselines3>=2.7.1
+Dynamic: license-file
+
 # Train RL agents to play Pokemon Red
 
 Train and visualize reinforcement learning agents that play Pokemon Red, with ready-to-use pretrained models, a fast V2 trainer, and optional live streaming to a shared world map.
