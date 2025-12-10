@@ -9,12 +9,7 @@ from stable_baselines3.common import env_checker
 from stable_baselines3.common.vec_env import DummyVecEnv, SubprocVecEnv
 from stable_baselines3.common.utils import set_random_seed
 from stable_baselines3.common.callbacks import CheckpointCallback
-from config import (
-    AGENT_ENABLED_PATH,
-    INIT_STATE_PATH,
-    ROM_PATH,
-    RUNS_DIR,
-)
+from config import AGENT_ENABLED, INIT_STATE_PATH, ROM_PATH, RUNS_DIR
 
 def make_env(rank, env_conf, seed=0):
     """
@@ -75,12 +70,7 @@ if __name__ == '__main__':
     #keyboard.on_press_key("M", toggle_agent)
     obs, info = env.reset()
     while True:
-        try:
-            with open(AGENT_ENABLED_PATH, "r") as f:
-                agent_enabled = f.readlines()[0].startswith("yes")
-        except:
-            agent_enabled = False
-        if agent_enabled:
+        if AGENT_ENABLED:
             action, _states = model.predict(obs, deterministic=False)
             obs, rewards, terminated, truncated, info = env.step(action)
         else:
@@ -91,4 +81,3 @@ if __name__ == '__main__':
         if truncated:
             break
     env.close()
-

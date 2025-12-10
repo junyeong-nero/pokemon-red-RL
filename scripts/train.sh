@@ -1,1 +1,1 @@
-uv run baseline_fast_v2.py
+uv run src/baseline_fast_v2.py

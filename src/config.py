@@ -7,15 +7,18 @@ from pathlib import Path
 
 SRC_DIR = Path(__file__).resolve().parent
 PROJECT_ROOT = SRC_DIR.parent
+RESOURCES_DIR = PROJECT_ROOT / "resources"
 
 # Core assets
 ROM_PATH = PROJECT_ROOT / "pokemon-red.gb"
 INIT_STATE_PATH = PROJECT_ROOT / "init.state"
-AGENT_ENABLED_PATH = SRC_DIR / "agent_enabled.txt"
 
 # Data files
-EVENTS_PATH = SRC_DIR / "events.json"
-MAP_DATA_PATH = SRC_DIR / "map_data.json"
+EVENTS_PATH = RESOURCES_DIR / "events.json"
+MAP_DATA_PATH = RESOURCES_DIR / "map_data.json"
 
 # Output directories
 RUNS_DIR = SRC_DIR / "runs"
+
+# Agent toggle for interactive play; set to True to let the model act.
+AGENT_ENABLED = True
