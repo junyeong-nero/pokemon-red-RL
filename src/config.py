@@ -10,8 +10,8 @@ PROJECT_ROOT = SRC_DIR.parent
 RESOURCES_DIR = PROJECT_ROOT / "resources"
 
 # Core assets
-ROM_PATH = PROJECT_ROOT / "pokemon-red.gb"
-INIT_STATE_PATH = PROJECT_ROOT / "init.state"
+ROM_PATH = RESOURCES_DIR / "pokemon-red.gb"
+INIT_STATE_PATH = RESOURCES_DIR / "init.state"
 
 # Data files
 EVENTS_PATH = RESOURCES_DIR / "events.json"

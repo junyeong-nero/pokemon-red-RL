@@ -11,6 +11,7 @@ from stable_baselines3.common.utils import set_random_seed
 from stable_baselines3.common.callbacks import CheckpointCallback
 from config import AGENT_ENABLED, INIT_STATE_PATH, ROM_PATH, RUNS_DIR
 
+
 def make_env(rank, env_conf, seed=0):
     """
     Utility function for multiprocessed env.
@@ -19,12 +20,15 @@ def make_env(rank, env_conf, seed=0):
     :param seed: (int) the initial seed for RNG
     :param rank: (int) index of the subprocess
     """
+
     def _init():
         env = RedGymEnv(env_conf)
-        #env.seed(seed + rank)
+        # env.seed(seed + rank)
         return env
+
     set_random_seed(seed)
     return _init
+
 
 def get_most_recent_zip_with_age(folder_path: Path):
     folder_path = Path(folder_path)
@@ -41,33 +45,49 @@ def get_most_recent_zip_with_age(folder_path: Path):
 
     return most_recent_zip, age_in_hours
 
-if __name__ == '__main__':
 
-    sess_path = Path(f'session_{str(uuid.uuid4())[:8]}')
+if __name__ == "__main__":
+
+    # Reuse the shared runs directory to avoid creating per-run session folders during inference.
+    sess_path = RUNS_DIR
     ep_length = 2**23
 
     env_config = {
-                'headless': False, 'save_final_state': True, 'early_stop': False,
-                'action_freq': 24, 'init_state': INIT_STATE_PATH, 'max_steps': ep_length,
-                'print_rewards': True, 'save_video': False, 'fast_video': True, 'session_path': sess_path,
-                'gb_path': ROM_PATH, 'debug': False, 'sim_frame_dist': 2_000_000.0, 'extra_buttons': False
-            }
-    
-    num_cpu = 1 #64 #46  # Also sets the number of episodes per training iteration
-    env = make_env(0, env_config)() #SubprocVecEnv([make_env(i, env_config) for i in range(num_cpu)])
-    
-    #env_checker.check_env(env)
+        "headless": False,
+        "save_final_state": True,
+        "early_stop": False,
+        "action_freq": 24,
+        "init_state": INIT_STATE_PATH,
+        "max_steps": ep_length,
+        "print_rewards": True,
+        "save_video": False,
+        "fast_video": True,
+        "session_path": sess_path,
+        "gb_path": ROM_PATH,
+        "debug": False,
+        "sim_frame_dist": 2_000_000.0,
+        "extra_buttons": False,
+    }
+
+    num_cpu = 1  # 64 #46  # Also sets the number of episodes per training iteration
+    env = make_env(
+        0, env_config
+    )()  # SubprocVecEnv([make_env(i, env_config) for i in range(num_cpu)])
+
+    # env_checker.check_env(env)
     most_recent_checkpoint, time_since = get_most_recent_zip_with_age(RUNS_DIR)
     if most_recent_checkpoint is not None:
         file_name = str(most_recent_checkpoint)
         print(f"using checkpoint: {file_name}, which is {time_since} hours old")
-    
+
     # could optionally manually specify a checkpoint here
-    #file_name = "runs/poke_41943040_steps.zip"
-    print('\nloading checkpoint')
-    model = PPO.load(file_name, env=env, custom_objects={'lr_schedule': 0, 'clip_range': 0})
-        
-    #keyboard.on_press_key("M", toggle_agent)
+    # file_name = "runs/poke_41943040_steps.zip"
+    print("\nloading checkpoint")
+    model = PPO.load(
+        file_name, env=env, custom_objects={"lr_schedule": 0, "clip_range": 0}
+    )
+
+    # keyboard.on_press_key("M", toggle_agent)
     obs, info = env.reset()
     while True:
         if AGENT_ENABLED:
