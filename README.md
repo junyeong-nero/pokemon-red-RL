@@ -21,7 +21,7 @@ V2 is preferred; the original flow is identical but uses the `baselines/` direct
    - Linux: `pip install -r requirements.txt`  
    - macOS: `pip install -r macos_requirements.txt` (SDL might need separate install)
 3. Launch the interactive agent:  
-   `python run_pretrained_interactive.py`
+   `uv run src/inference.py`
 
 Controls: arrow keys + `a` / `s` for A/B buttons. Toggle the agent by editing `agent_enabled.txt`. The ROM must stay in the repo root and your working directory must match the chosen version folder.
 
@@ -30,7 +30,7 @@ V2 trains faster, uses less memory, reaches Cerulean, and streams to the global 
 
 1. Follow the setup above in `v2/`.
 2. Start training:  
-   `python baseline_fast_v2.py`
+   `uv run src/train_agent.py`
 
 ## Track progress and broadcast
 - **Global map broadcast:** Wrap your environment with the [Broadcast Wrapper](baselines/stream_agent_wrapper.py) (V2 has its own `stream_agent_wrapper.py`) to stream runs to the shared map.

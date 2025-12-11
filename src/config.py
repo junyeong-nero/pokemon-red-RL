@@ -31,6 +31,7 @@ MAP_DATA_PATH = RESOURCES_DIR / "map_data.json"
 
 # Output directories
 RUNS_DIR = SRC_DIR / "runs"
+STATE_LOG_DIR = OUTPUTS_DIR / "state_logs"
 
 # Agent toggle for interactive play; set to True to let the model act.
 AGENT_ENABLED = True

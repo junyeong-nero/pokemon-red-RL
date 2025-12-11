@@ -1,1 +1,1 @@
-uv run src/run_pretrained_interactive.py
+uv run src/inference.py
