@@ -179,6 +179,13 @@ class RedGymEnv(Env):
         if not config["headless"]:
             self.pyboy.set_emulation_speed(6)
 
+    def close(self):
+        """Gracefully stop the emulator to avoid shutdown errors."""
+        try:
+            self.pyboy.stop(False)
+        except Exception as exc:
+            print(f"[WARN] failed to stop PyBoy cleanly: {exc}")
+
     def reset(self, seed=None, options={}):
         self.seed = seed
         # restart game, skipping credits

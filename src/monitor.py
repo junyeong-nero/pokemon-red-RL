@@ -5,6 +5,7 @@ Captures grayscale frames and writes them to outputs/ as an mp4.
 from __future__ import annotations
 
 import datetime
+import sys
 from pathlib import Path
 from typing import Optional
 
@@ -27,6 +28,12 @@ class VideoMonitor:
         self.fps = fps
         self.writer: Optional[media.VideoWriter] = None
 
+    def __enter__(self) -> "VideoMonitor":
+        return self
+
+    def __exit__(self, exc_type, exc, tb) -> None:
+        self.close()
+
     def write(self, frame) -> None:
         """Accept a frame shaped (H,W) or (H,W,1) and append to the video."""
         arr = np.asarray(frame)
@@ -43,5 +50,19 @@ class VideoMonitor:
 
     def close(self) -> None:
         if self.writer is not None:
-            self.writer.close()
+            try:
+                # __exit__ finalizes the underlying ffmpeg process more reliably.
+                self.writer.__exit__(None, None, None)
+            except Exception as exc:
+                print(
+                    f"[WARN] failed to finalize video writer cleanly ({exc}); attempting close()",
+                    file=sys.stderr,
+                )
+                try:
+                    self.writer.close()
+                except Exception as close_exc:
+                    print(
+                        f"[WARN] close() also failed for {self.output_path}: {close_exc}",
+                        file=sys.stderr,
+                    )
             self.writer = None

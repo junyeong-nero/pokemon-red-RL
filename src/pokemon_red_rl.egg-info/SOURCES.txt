@@ -1,8 +1,0 @@
-LICENSE
-README.md
-pyproject.toml
-src/pokemon_red_rl.egg-info/PKG-INFO
-src/pokemon_red_rl.egg-info/SOURCES.txt
-src/pokemon_red_rl.egg-info/dependency_links.txt
-src/pokemon_red_rl.egg-info/requires.txt
-src/pokemon_red_rl.egg-info/top_level.txt

@@ -1,6 +1,8 @@
 import datetime
 import json
+import sys
 import time
+import traceback
 from pathlib import Path
 
 from red_gym_env import RedGymEnv
@@ -33,9 +35,9 @@ class Evaluator:
         map_name = self._get_map_name(state_dict)
         prev_map_name = self._get_map_name(self.prev_state_dict or {})
 
-        map_screen_raw = (
-            (state_dict.get("map_info", {}) or {}).get("map_screen_raw", "") or ""
-        )
+        map_screen_raw = (state_dict.get("map_info", {}) or {}).get(
+            "map_screen_raw", ""
+        ) or ""
         your_party = state_dict.get("your_party", "") or ""
         inventory = state_dict.get("inventory", "") or ""
         badge_list = state_dict.get("badge_list", "") or ""
@@ -43,7 +45,12 @@ class Evaluator:
         prev_state = (self.prev_state_dict or {}).get("state", "") or ""
 
         if self.score == 0:
-            if prev_map_name and map_name and prev_map_name != map_name and "RedsHouse" not in map_name:
+            if (
+                prev_map_name
+                and map_name
+                and prev_map_name != map_name
+                and "RedsHouse" not in map_name
+            ):
                 self.score += 1
         elif self.score == 1:
             if "SPRITE_OAK" in map_screen_raw:
@@ -52,7 +59,12 @@ class Evaluator:
             if "Name" in your_party:
                 self.score += 1
         elif self.score == 3:
-            if prev_state and current_state and prev_state != current_state and "Battle" in prev_state:
+            if (
+                prev_state
+                and current_state
+                and prev_state != current_state
+                and "Battle" in prev_state
+            ):
                 self.score += 1
         elif self.score == 4:
             if "Viridian" in map_name:
@@ -63,26 +75,27 @@ class Evaluator:
         elif self.score == 6:
             if "OAK's PARCEL" not in inventory:
                 self.score += 1
-        elif self.score > 6:
-            if not self.map_flag and "TOWN MAP" in inventory:
-                self.score += 1
-                self.map_flag = True
-            if not self.ball_flag and "BALL" in inventory:
-                self.score += 1
-                self.ball_flag = True
-            if not self.catch_flag and "\nName" in your_party:
-                self.score += 1
-                self.catch_flag = True
-            if not self.pewter_flag and "Pewter" in map_name:
-                self.score += 1
-                self.pewter_flag = True
-            if not self.leader_flag and "Boulder" in badge_list:
-                self.score += 1
-                self.leader_flag = True
+        # elif self.score > 6:
+        #     if not self.map_flag and "TOWN MAP" in inventory:
+        #         self.score += 1
+        #         self.map_flag = True
+        #     if not self.ball_flag and "BALL" in inventory:
+        #         self.score += 1
+        #         self.ball_flag = True
+        #     if not self.catch_flag and "\nName" in your_party:
+        #         self.score += 1
+        #         self.catch_flag = True
+        #     if not self.pewter_flag and "Pewter" in map_name:
+        #         self.score += 1
+        #         self.pewter_flag = True
+        #     if not self.leader_flag and "Boulder" in badge_list:
+        #         self.score += 1
+        #         self.leader_flag = True
 
-        done = self.score >= 12
+        done = self.score >= 7
         self.prev_state_dict = state_dict
         return self.score, done
+
 
 def make_env(rank, env_conf, seed=0):
     """
@@ -132,6 +145,12 @@ class JsonStateLogger:
         self.path.parent.mkdir(parents=True, exist_ok=True)
         self._fh = self.path.open("w", encoding="utf-8")
 
+    def __enter__(self) -> "JsonStateLogger":
+        return self
+
+    def __exit__(self, exc_type, exc, tb) -> None:
+        self.close()
+
     def write(
         self,
         *,
@@ -158,7 +177,16 @@ class JsonStateLogger:
             self._fh.close()
 
 
-if __name__ == "__main__":
+def _safe_close(name: str, closer):
+    if closer is None:
+        return
+    try:
+        closer()
+    except Exception as exc:
+        print(f"[WARN] failed to close {name}: {exc}", file=sys.stderr)
+
+
+def main():
 
     # Reuse the shared runs directory to avoid creating per-run session folders during inference.
     sess_path = RUNS_DIR
@@ -182,66 +210,75 @@ if __name__ == "__main__":
     }
 
     num_cpu = 1  # 64 #46  # Also sets the number of episodes per training iteration
-    env = make_env(
-        0, env_config
-    )()  # SubprocVecEnv([make_env(i, env_config) for i in range(num_cpu)])
-
-    # env_checker.check_env(env)
-    file_name = None
-    most_recent_checkpoint, time_since = get_most_recent_zip_with_age(RUNS_DIR)
-    if most_recent_checkpoint is not None:
-        file_name = str(most_recent_checkpoint)
-        print(f"using checkpoint: {file_name}, which is {time_since} hours old")
-    else:
-        raise FileNotFoundError(f"No checkpoint zip files found in {RUNS_DIR}")
-
-    # could optionally manually specify a checkpoint here
-    # file_name = "runs/poke_41943040_steps.zip"
-    print("\nloading checkpoint")
-    model = PPO.load(
-        file_name, env=env, custom_objects={"lr_schedule": 0, "clip_range": 0}
-    )
-
-    # keyboard.on_press_key("M", toggle_agent)
-    obs, info = env.reset()
-    monitor = VideoMonitor()
-    state_logger = JsonStateLogger()
+    env = None
     evaluator = Evaluator()
+    exit_code = 0
     try:
-        print(f"logging game state to {state_logger.path}")
-        terminated = False
-        truncated = False
-        info = {}
-        while True:
-            if AGENT_ENABLED:
-                action, _states = model.predict(obs, deterministic=False)
-                obs, rewards, terminated, truncated, info = env.step(action)
-            else:
-                env.pyboy.tick(1, True)
-                obs = env._get_obs()
-                truncated = env.step_count >= env.max_steps - 1
-                terminated = False
-                info = {}
+        env = make_env(
+            0, env_config
+        )()  # SubprocVecEnv([make_env(i, env_config) for i in range(num_cpu)])
 
-            frame = env.render(reduce_res=False)[:, :, 0]
+        # env_checker.check_env(env)
+        file_name = None
+        most_recent_checkpoint, time_since = get_most_recent_zip_with_age(RUNS_DIR)
+        if most_recent_checkpoint is not None:
+            file_name = str(most_recent_checkpoint)
+            print(f"using checkpoint: {file_name}, which is {time_since} hours old")
+        else:
+            raise FileNotFoundError(f"No checkpoint zip files found in {RUNS_DIR}")
 
-            state_text = env.get_state()
-            state_dict = env.parse_game_state()
-            score, done = evaluator.evaluate(state_dict)
-            state_logger.write(
-                step=env.step_count,
-                state_text=state_text,
-                terminated=terminated,
-                truncated=truncated,
-                info=info,
-            )
-            print(state_text)
-            print(f"score: {score}/12")
-            monitor.write(frame)
+        # could optionally manually specify a checkpoint here
+        # file_name = "runs/poke_41943040_steps.zip"
+        print("\nloading checkpoint")
+        model = PPO.load(
+            file_name, env=env, custom_objects={"lr_schedule": 0, "clip_range": 0}
+        )
 
-            if truncated or terminated or done:
-                break
+        obs, info = env.reset()
+
+        with VideoMonitor() as monitor, JsonStateLogger() as state_logger:
+            print(f"recording video to {monitor.output_path}")
+            print(f"logging game state to {state_logger.path}")
+            terminated = False
+            truncated = False
+            info = {}
+            while True:
+                if AGENT_ENABLED:
+                    action, _states = model.predict(obs, deterministic=False)
+                    obs, rewards, terminated, truncated, info = env.step(action)
+                else:
+                    env.pyboy.tick(1, True)
+                    obs = env._get_obs()
+                    truncated = env.step_count >= env.max_steps - 1
+                    terminated = False
+                    info = {}
+
+                frame = env.render(reduce_res=False)[:, :, 0]
+
+                state_text = env.get_state()
+                state_dict = env.parse_game_state()
+                score, done = evaluator.evaluate(state_dict)
+                state_logger.write(
+                    step=env.step_count,
+                    state_text=state_text,
+                    terminated=terminated,
+                    truncated=truncated,
+                    info=info,
+                )
+                print(state_text)
+                print(f"score: {score}/7")
+                monitor.write(frame)
+
+                if truncated or terminated or done:
+                    break
+    except Exception as exc:
+        exit_code = 1
+        print(f"[ERROR] inference failed: {exc}", file=sys.stderr)
+        traceback.print_exc()
     finally:
-        monitor.close()
-        state_logger.close()
-        env.close()
+        _safe_close("environment", getattr(env, "close", None))
+    sys.exit(exit_code)
+
+
+if __name__ == "__main__":
+    main()
